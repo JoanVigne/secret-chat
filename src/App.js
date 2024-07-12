@@ -9,10 +9,11 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { useCollectionData } from "react-firebase-hooks/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -40,7 +41,11 @@ function App() {
   if (user) {
     return (
       <div className="App">
-        Hello, {user.displayName} <Chatroom />
+        <header> Hello, {user.displayName}</header>
+
+        <main>
+          <Chatroom user={user} />
+        </main>
       </div>
     );
   } else {
@@ -71,10 +76,11 @@ const SignIn = () => {
   return <button onClick={signInWithGoogle}>Sign in with Google</button>;
 };
 
-const Chatroom = () => {
+const Chatroom = (props) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-
+  const { user } = props;
+  console.log(user);
   // Fetch messages and listen for new ones
   useEffect(() => {
     const q = query(collection(db, "messages"), orderBy("createdAt"));
@@ -85,12 +91,9 @@ const Chatroom = () => {
       }));
       setMessages(messages);
     });
-
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
-  // Handle sending a new message
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -101,34 +104,50 @@ const Chatroom = () => {
     setNewMessage("");
   };
 
+  async function deleteMessage(messageId) {
+    try {
+      await deleteDoc(doc(db, "messages", messageId));
+      console.log("Document successfully deleted!");
+    } catch (error) {
+      console.error("Error removing document: ", error);
+    }
+  }
   return (
     <div>
       <ul>
         {messages.map((message) => (
-          <li key={message.id}>{message.text}</li>
+          <li key={message.id} className="message">
+            <div className="photoUrlAndMessage">
+              <img
+                className="photoUrl"
+                src={user && user.photoURL && user.photoURL}
+                alt=""
+              />
+              {message.text}
+            </div>
+
+            <button
+              className="delete"
+              onClick={() => deleteMessage(message.id)}
+            >
+              x
+            </button>
+          </li>
         ))}
       </ul>
       <form onSubmit={sendMessage}>
         <input
+          className="send"
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
         />
-        <button type="submit">Send</button>
+        <button type="submit" className="send">
+          {">"}
+        </button>
       </form>
     </div>
   );
 };
-
-function Chatmessage(props) {
-  const { text, uid } = props.message;
-  const messageClass = uid === auth.currentUser.uid ? "sent" : "received";
-  return (
-    <div className={`message ${messageClass}`}>
-      {/* <img src={photoURL} alt="photo user" /> */}
-      <p>{text}</p>
-    </div>
-  );
-}
 
 export default App;
